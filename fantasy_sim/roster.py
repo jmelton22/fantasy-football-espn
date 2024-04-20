@@ -1,5 +1,4 @@
 import heapq
-from pprint import pprint
 
 
 FLEX_POS = ['RB', 'WR', 'TE', 'D/ST', 'K']
@@ -8,7 +7,6 @@ FLEX_POS = ['RB', 'WR', 'TE', 'D/ST', 'K']
 https://github.com/cwendt94/espn-api/tree/master
 https://github.com/cwendt94/espn-api/wiki
 """
-
 
 
 class HeapPlayer:
@@ -26,6 +24,7 @@ class HeapPlayer:
     def __repr__(self) -> str:
         return str(self.player)
 
+
 class ActiveRoster:
     def __init__(self):
         self.roster = {
@@ -38,32 +37,56 @@ class ActiveRoster:
             'K': None
         }
 
+    @property
+    def score(self):
+        return sum(
+            sum(y.points for y in x) if isinstance(x, list) else x.points
+            for x in self.roster.values()
+        )
+
     def __repr__(self) -> str:
-        return '\n'.join(f'{k}: {v.player}' for k, v in self.roster.items())
+        return f"""    QB:    {self._fmt_player_str(self.roster["QB"])}
+    RB1:   {self._fmt_player_str(self.roster["RB"][0])}
+    RB2:   {self._fmt_player_str(self.roster["RB"][1])}
+    WR1:   {self._fmt_player_str(self.roster["WR"][0])}
+    WR2:   {self._fmt_player_str(self.roster["WR"][1])}
+    TE:    {self._fmt_player_str(self.roster["TE"])}
+    FLEX1: {self._fmt_player_str(self.roster["FLEX"][0])}
+    FLEX2: {self._fmt_player_str(self.roster["FLEX"][1])}
+    D/ST:  {self._fmt_player_str(self.roster["D/ST"])}
+    K:     {self._fmt_player_str(self.roster["K"])}"""
 
-    def fill_roster(self, players):
-        player_heap = self.build_player_heap(players)
+    @staticmethod
+    def _fmt_player_str(heap_player):
+        return f'{heap_player.player.name} - {heap_player.points:.3f}'
 
-        while not self.is_roster_filled() and player_heap:
+    @classmethod
+    def fill_roster(cls, players):
+        roster = ActiveRoster()
+        player_heap = roster.build_player_heap(players)
+
+        while not roster.is_roster_filled() and player_heap:
             curr_player = heapq.heappop(player_heap)
             pos = curr_player.position
-            slot = self.roster[pos]
+            slot = roster.roster[pos]
 
             if slot is None:
-                self.roster[pos] = curr_player
+                roster.roster[pos] = curr_player
             elif pos == 'RB' and not all(slot):
-                self.roster[pos][int(slot[0] is not None)] = curr_player
+                roster.roster[pos][int(slot[0] is not None)] = curr_player
             elif pos == 'WR' and not all(slot):
-                self.roster[pos][int(slot[0] is not None)] = curr_player
-            elif pos in FLEX_POS and not all(self.roster['FLEX']):
-                slot = self.roster['FLEX']
+                roster.roster[pos][int(slot[0] is not None)] = curr_player
+            elif pos in FLEX_POS and not all(roster.roster['FLEX']):
+                slot = roster.roster['FLEX']
                 slot[int(slot[0] is not None)] = curr_player
 
         # If we exhaust available players and can't fill roster slot, assign zero points
-        if not self.is_roster_filled:
-            for k, v in self.roster:
+        if not roster.is_roster_filled():
+            for k, v in roster.roster:
                 if v is None:
-                    self.roster[k] = 0.
+                    roster.roster[k] = 0.
+
+        return roster
 
     @staticmethod
     def build_player_heap(players):
